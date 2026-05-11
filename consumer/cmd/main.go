@@ -1,0 +1,91 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"log"
+	"strings"
+
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	"github.com/gofiber/fiber/v2"
+	_ "github.com/lib/pq"
+	"kafka_laba/consumer/internal/data"
+	"kafka_laba/consumer/internal/data/ent"
+	"kafka_laba/consumer/internal/shared/env"
+)
+
+func main() {
+	ctx := context.Background()
+
+	port := env.Get("DATA_PORT", "8081")
+	dsn := env.Get("POSTGRES_DSN", "postgres://postgres:postgres@localhost:5432/kafka_laba?sslmode=disable")
+	brokersRaw := env.Get("KAFKA_BROKERS", "localhost:9092")
+	topic := env.Get("KAFKA_TOPIC", "blog-events")
+
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		log.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
+
+	driver := entsql.OpenDB(dialect.Postgres, db)
+	client := ent.NewClient(ent.Driver(driver))
+	defer client.Close()
+
+	if err = ensureSchema(ctx, db); err != nil {
+		log.Fatalf("ensure schema: %v", err)
+	}
+
+	svc := data.NewService(client, db)
+	consumer := data.NewConsumer(strings.Split(brokersRaw, ","), topic, svc)
+	defer consumer.Close()
+
+	go consumer.Run(ctx)
+
+	app := fiber.New()
+	data.RegisterHTTP(app, svc)
+
+	log.Printf("consumer listening on :%s", port)
+	if err = app.Listen(":" + port); err != nil {
+		log.Fatalf("consumer listen: %v", err)
+	}
+}
+
+func ensureSchema(ctx context.Context, db *sql.DB) error {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS posts (
+			id SERIAL PRIMARY KEY,
+			title TEXT NOT NULL,
+			body TEXT NOT NULL,
+			author TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS comments (
+			id SERIAL PRIMARY KEY,
+			post_id INTEGER NOT NULL REFERENCES posts(id),
+			body TEXT NOT NULL,
+			author TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS post_likes (
+			id SERIAL PRIMARY KEY,
+			post_id INTEGER NOT NULL REFERENCES posts(id),
+			"user" TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL,
+			UNIQUE(post_id, "user")
+		)`,
+		`CREATE TABLE IF NOT EXISTS post_views (
+			id SERIAL PRIMARY KEY,
+			post_id INTEGER NOT NULL REFERENCES posts(id),
+			"user" TEXT,
+			created_at TIMESTAMPTZ NOT NULL
+		)`,
+	}
+	for _, query := range queries {
+		if _, err := db.ExecContext(ctx, query); err != nil {
+			return err
+		}
+	}
+	return nil
+}

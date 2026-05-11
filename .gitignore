@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Env files
+.env
+
+# Go build/cache
+.cache/
+bin/
+dist/
+coverage.out
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
