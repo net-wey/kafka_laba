@@ -41,12 +41,12 @@ services:
       timeout: ${KAFKA_HEALTHCHECK_TIMEOUT}
       retries: ${KAFKA_HEALTHCHECK_RETRIES}
 
-  consumer:
+  data-service:
     build:
-      context: ./consumer
+      context: ./data-service
       dockerfile: Dockerfile
     environment:
-      DATA_PORT: ${CONSUMER_PORT}
+      DATA_PORT: ${DATA_SERVICE_PORT}
       POSTGRES_DSN: ${POSTGRES_DSN}
       KAFKA_BROKERS: ${KAFKA_BROKERS}
       KAFKA_TOPIC: ${KAFKA_TOPIC}
@@ -56,21 +56,21 @@ services:
       kafka:
         condition: service_healthy
     ports:
-      - "${CONSUMER_PORT}:${CONSUMER_PORT}"
+      - "${DATA_SERVICE_PORT}:${DATA_SERVICE_PORT}"
 
-  producer:
+  api-service:
     build:
-      context: ./producer
+      context: ./api-service
       dockerfile: Dockerfile
     environment:
-      API_PORT: ${PRODUCER_PORT}
+      API_PORT: ${API_SERVICE_PORT}
       KAFKA_BROKERS: ${KAFKA_BROKERS}
       KAFKA_TOPIC: ${KAFKA_TOPIC}
-      DATA_SERVICE_URL: http://consumer:${CONSUMER_PORT}
+      DATA_SERVICE_URL: http://data-service:${DATA_SERVICE_PORT}
     depends_on:
-      consumer:
+      data-service:
         condition: service_started
       kafka:
         condition: service_healthy
     ports:
-      - "${PRODUCER_PORT}:${PRODUCER_PORT}"
+      - "${API_SERVICE_PORT}:${API_SERVICE_PORT}"

@@ -8,10 +8,10 @@ GO := GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) go
 
 help:
 	@echo "Available targets:"
-	@echo "  make tidy          - go mod tidy in producer and consumer"
-	@echo "  make ent-generate  - generate ent code in consumer"
-	@echo "  make test          - run tests in producer and consumer"
-	@echo "  make build         - build producer and consumer"
+	@echo "  make tidy          - go mod tidy in api-service and data-service"
+	@echo "  make ent-generate  - generate ent code in data-service"
+	@echo "  make test          - run tests in api-service and data-service"
+	@echo "  make build         - build api-service and data-service"
 	@echo "  make up            - docker compose up --build -d"
 	@echo "  make down          - docker compose down"
 	@echo "  make restart       - restart stack"
@@ -22,19 +22,19 @@ help:
 	@echo "  make cli           - run CLI, use ARGS='<command flags>'"
 
 tidy:
-	cd producer && $(GO) mod tidy
-	cd consumer && $(GO) mod tidy
+	cd api-service && $(GO) mod tidy
+	cd data-service && $(GO) mod tidy
 
 ent-generate:
-	cd consumer && $(GO) generate ./internal/data/ent
+	cd data-service && $(GO) generate ./data/ent
 
 test:
-	cd producer && $(GO) test ./...
-	cd consumer && $(GO) test ./...
+	cd api-service && $(GO) test ./...
+	cd data-service && $(GO) test ./...
 
 build:
-	cd producer && $(GO) build ./...
-	cd consumer && $(GO) build ./...
+	cd api-service && $(GO) build ./...
+	cd data-service && $(GO) build ./...
 
 up:
 	docker compose up --build -d
@@ -71,7 +71,7 @@ smoke:
 	@echo ""
 
 cli-help:
-	cd producer && $(GO) run ./cmd/cli help
+	cd api-service && $(GO) run ./cmd/cli help
 
 cli:
-	cd producer && $(GO) run ./cmd/cli $(ARGS)
+	cd api-service && $(GO) run ./cmd/cli $(ARGS)

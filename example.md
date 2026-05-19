@@ -6,7 +6,7 @@ docker compose exec postgres psql -U postgres -d kafka_laba -tAc "SELECT COUNT(*
 ```
 
 ```
-docker compose stop consumer
+docker compose stop data-service
 ```
 ```
 curl -X POST http://localhost:8080/api/v1/posts \
@@ -22,7 +22,7 @@ docker compose exec postgres psql -U postgres -d kafka_laba -tAc "SELECT COUNT(*
 ```
 
 ```
-docker compose start consumer
+docker compose start data-service
 sleep 5
 ```
 
