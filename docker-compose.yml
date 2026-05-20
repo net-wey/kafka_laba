@@ -21,8 +21,6 @@ services:
 
   kafka:
     image: ${KAFKA_IMAGE}
-    ports:
-      - "${KAFKA_PORT}:9092"
     environment:
       KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
       KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
@@ -49,15 +47,12 @@ services:
       DATA_PORT: ${DATA_SERVICE_PORT}
       POSTGRES_DSN: ${POSTGRES_DSN}
       KAFKA_BROKERS: ${KAFKA_BROKERS}
-      KAFKA_TOPIC: ${KAFKA_TOPIC}
+      KAFKA_TOPICS: ${KAFKA_TOPICS}
     depends_on:
       postgres:
         condition: service_healthy
       kafka:
         condition: service_healthy
-    ports:
-      - "${DATA_SERVICE_PORT}:${DATA_SERVICE_PORT}"
-
   api-service:
     build:
       context: ./api-service
@@ -65,7 +60,10 @@ services:
     environment:
       API_PORT: ${API_SERVICE_PORT}
       KAFKA_BROKERS: ${KAFKA_BROKERS}
-      KAFKA_TOPIC: ${KAFKA_TOPIC}
+      KAFKA_TOPIC_POST_CREATED: ${KAFKA_TOPIC_POST_CREATED}
+      KAFKA_TOPIC_COMMENT_CREATED: ${KAFKA_TOPIC_COMMENT_CREATED}
+      KAFKA_TOPIC_LIKE_CREATED: ${KAFKA_TOPIC_LIKE_CREATED}
+      KAFKA_TOPIC_VIEW_CREATED: ${KAFKA_TOPIC_VIEW_CREATED}
       DATA_SERVICE_URL: http://data-service:${DATA_SERVICE_PORT}
     depends_on:
       data-service:

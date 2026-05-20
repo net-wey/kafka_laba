@@ -21,7 +21,7 @@ func main() {
 	port := env.Get("DATA_PORT", "8081")
 	dsn := env.Get("POSTGRES_DSN", "postgres://postgres:postgres@localhost:5432/kafka_laba?sslmode=disable")
 	brokersRaw := env.Get("KAFKA_BROKERS", "localhost:9092")
-	topic := env.Get("KAFKA_TOPIC", "blog-events")
+	topicsRaw := env.Get("KAFKA_TOPICS", "post-created-events,comment-created-events,like-created-events,view-created-events")
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
@@ -38,7 +38,7 @@ func main() {
 	}
 
 	svc := data.NewService(client, db)
-	consumer := data.NewConsumer(strings.Split(brokersRaw, ","), topic, svc)
+	consumer := data.NewConsumer(strings.Split(brokersRaw, ","), splitAndTrim(topicsRaw), svc)
 	defer consumer.Close()
 
 	go consumer.Run(ctx)
@@ -50,6 +50,18 @@ func main() {
 	if err = app.Listen(":" + port); err != nil {
 		log.Fatalf("data-service listen: %v", err)
 	}
+}
+
+func splitAndTrim(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		value := strings.TrimSpace(part)
+		if value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
 }
 
 func ensureSchema(ctx context.Context, db *sql.DB) error {

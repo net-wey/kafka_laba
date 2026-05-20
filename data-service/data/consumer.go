@@ -14,10 +14,10 @@ type Consumer struct {
 	svc    *Service
 }
 
-func NewConsumer(brokers []string, topic string, svc *Service) *Consumer {
+func NewConsumer(brokers []string, topics []string, svc *Service) *Consumer {
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     brokers,
-		Topic:       topic,
+		GroupTopics: topics,
 		GroupID:     "data-service-group",
 		StartOffset: kafka.FirstOffset,
 		MinBytes:    1,

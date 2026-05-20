@@ -62,7 +62,8 @@ data-service/
 ## Как это работает
 
 1. Клиент отправляет HTTP-запрос в `api-service` (`/api/v1/posts`, `/comments`, `/likes`, `/views`).
-2. `api-service` не пишет в базу напрямую, а отправляет событие в Kafka topic `blog-events`.
+2. `api-service` не пишет в базу напрямую, а отправляет события в отдельные Kafka topic:
+   `post-created-events`, `comment-created-events`, `like-created-events`, `view-created-events`.
 3. `data-service` читает события из Kafka как consumer group `data-service-group`.
 4. `data-service` сохраняет данные в PostgreSQL таблицы `posts`, `comments`, `post_likes`, `post_views`.
 5. Для поиска и отчетов `api-service` проксирует запросы в `data-service`.

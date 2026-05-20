@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -12,34 +13,56 @@ import (
 )
 
 type Producer struct {
-	writer *kafka.Writer
+	writersByEvent map[string]*kafka.Writer
 }
 
-func NewProducer(brokers []string, topic string) *Producer {
-	return &Producer{
-		writer: &kafka.Writer{
+func NewProducer(brokers []string, topicsByEvent map[string]string) *Producer {
+	writersByEvent := make(map[string]*kafka.Writer, len(topicsByEvent))
+	for eventType, topic := range topicsByEvent {
+		writersByEvent[eventType] = &kafka.Writer{
 			Addr:         kafka.TCP(brokers...),
 			Topic:        topic,
+			Balancer:     &kafka.Hash{},
 			RequiredAcks: kafka.RequireOne,
 			BatchTimeout: 10 * time.Millisecond,
-		},
+		}
+	}
+	return &Producer{
+		writersByEvent: writersByEvent,
 	}
 }
 
 func (p *Producer) Send(ctx context.Context, eventType string, payload events.Data) error {
+	writer, ok := p.writersByEvent[eventType]
+	if !ok {
+		return fmt.Errorf("no kafka topic configured for event type: %s", eventType)
+	}
+
 	msg := events.Event{Type: eventType, Data: payload}
 	bytes, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
-	return p.writer.WriteMessages(ctx, kafka.Message{
+	return writer.WriteMessages(ctx, kafka.Message{
 		Key:   buildMessageKey(eventType, payload),
 		Value: bytes,
 	})
 }
 
 func (p *Producer) Close() error {
-	return p.writer.Close()
+	var firstErr error
+	closedTopics := map[string]struct{}{}
+	for _, writer := range p.writersByEvent {
+		topic := writer.Topic
+		if _, exists := closedTopics[topic]; exists {
+			continue
+		}
+		closedTopics[topic] = struct{}{}
+		if err := writer.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }
 
 func buildMessageKey(eventType string, payload events.Data) []byte {
