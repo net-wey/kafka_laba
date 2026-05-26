@@ -12,19 +12,20 @@ import (
 type Consumer struct {
 	reader *kafka.Reader
 	svc    *Service
+	topic  string
 }
 
-func NewConsumer(brokers []string, topics []string, svc *Service) *Consumer {
+func NewConsumer(brokers []string, topic string, groupID string, svc *Service) *Consumer {
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     brokers,
-		GroupTopics: topics,
-		GroupID:     "data-service-group",
+		Topic:       topic,
+		GroupID:     groupID,
 		StartOffset: kafka.FirstOffset,
 		MinBytes:    1,
 		MaxBytes:    10e6,
 	})
 
-	return &Consumer{reader: reader, svc: svc}
+	return &Consumer{reader: reader, svc: svc, topic: topic}
 }
 
 func (c *Consumer) Run(ctx context.Context) {
@@ -34,18 +35,18 @@ func (c *Consumer) Run(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			log.Printf("kafka read error: %v", err)
+			log.Printf("kafka read error: topic=%s error=%v", c.topic, err)
 			continue
 		}
 
 		var evt events.Event
 		if err = json.Unmarshal(msg.Value, &evt); err != nil {
-			log.Printf("invalid event payload: %v", err)
+			log.Printf("invalid event payload: topic=%s error=%v", c.topic, err)
 			continue
 		}
 
 		if err = c.svc.ApplyEvent(ctx, evt); err != nil {
-			log.Printf("apply event failed: type=%s error=%v", evt.Type, err)
+			log.Printf("apply event failed: topic=%s type=%s error=%v", c.topic, evt.Type, err)
 		}
 	}
 }

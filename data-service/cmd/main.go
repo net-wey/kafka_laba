@@ -38,10 +38,21 @@ func main() {
 	}
 
 	svc := data.NewService(client, db)
-	consumer := data.NewConsumer(strings.Split(brokersRaw, ","), splitAndTrim(topicsRaw), svc)
-	defer consumer.Close()
+	brokers := splitAndTrim(brokersRaw)
+	topics := splitAndTrim(topicsRaw)
+	if len(topics) == 0 {
+		log.Fatalf("no kafka topics configured")
+	}
 
-	go consumer.Run(ctx)
+	consumers := make([]*data.Consumer, 0, len(topics))
+	for _, topic := range topics {
+		groupID := "data-service-group-" + topic
+		consumer := data.NewConsumer(brokers, topic, groupID, svc)
+		consumers = append(consumers, consumer)
+		go consumer.Run(ctx)
+		log.Printf("kafka consumer started: topic=%s group=%s", topic, groupID)
+	}
+	defer closeConsumers(consumers)
 
 	app := fiber.New()
 	data.RegisterHTTP(app, svc)
@@ -62,6 +73,14 @@ func splitAndTrim(raw string) []string {
 		}
 	}
 	return out
+}
+
+func closeConsumers(consumers []*data.Consumer) {
+	for _, consumer := range consumers {
+		if err := consumer.Close(); err != nil {
+			log.Printf("consumer close error: %v", err)
+		}
+	}
 }
 
 func ensureSchema(ctx context.Context, db *sql.DB) error {
